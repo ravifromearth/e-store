@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using RestSharp;
 using RestSharp.Authenticators;
+using RestSharp.Serializers.NewtonsoftJson;
 using WEB.Helpers.Services.Base;
 
 namespace WEB.Helpers.Services
@@ -9,25 +10,25 @@ namespace WEB.Helpers.Services
     public class RestClientServiceProvider : IRestClientServiceProvider, IDisposable
     {
         protected readonly AppConfigration _appConfigration;
-        protected readonly RestClient _RestClient;
+        protected RestClient _RestClient;
+        protected RestClientOptions _RestClientOptions;
 
         public RestClientServiceProvider(IOptions<AppConfigration> options)
         {
             _appConfigration = options.Value;
 
-            _RestClient = new RestClient(new RestClientOptions()
-                {
-                    BaseUrl = new Uri(_appConfigration.ApiBaseUrlSSL),
-                }
-            );
-            _RestClient.AcceptedContentTypes = new[] { "application/json" };
-            _RestClient.UseJson(); // use json only
-            _RestClient.UseSerializer<RestSharp.Serializers.NewtonsoftJson.JsonNetSerializer>();
+            _RestClientOptions = new RestClientOptions()
+            {
+                BaseUrl = new Uri(_appConfigration.ApiBaseUrlSSL),
+            };
+            
+            _RestClient = new RestClient(_RestClientOptions, configureSerialization: s => s.UseNewtonsoftJson());
         }
 
         public void SetAuthenticator(string token)
         {
-            _RestClient.Authenticator = string.IsNullOrWhiteSpace(token) ? null : new JwtAuthenticator(token);
+            _RestClientOptions.Authenticator = string.IsNullOrWhiteSpace(token) ? null : new JwtAuthenticator(token);
+            _RestClient = new RestClient(_RestClientOptions, configureSerialization: s => s.UseNewtonsoftJson());
         }
 
         public async Task<T> Get<T>(string path)
